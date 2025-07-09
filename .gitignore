@@ -1,4 +1,3 @@
-.idea
-.claude
+.*
 target
 Cargo.lock

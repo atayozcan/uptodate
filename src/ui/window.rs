@@ -162,7 +162,7 @@ impl MainWindow {
                             start_button.clone(),
                             stop_button.clone(),
                         )
-                            .await;
+                        .await;
                     }
                     Err(e) => {
                         error!("Failed to start updates: {e}");

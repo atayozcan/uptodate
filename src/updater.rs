@@ -293,7 +293,7 @@ impl Updater {
             tx,
             child_pids,
         )
-            .await
+        .await
     }
 
     async fn run_command(

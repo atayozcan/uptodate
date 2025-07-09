@@ -4,7 +4,7 @@ pub mod updater;
 
 use async_std::sync::RwLock;
 use config::Config;
-use libadwaita::{prelude::*, Application};
+use libadwaita::{Application, prelude::*};
 use std::sync::Arc;
 use updater::Updater;
 

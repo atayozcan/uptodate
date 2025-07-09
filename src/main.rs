@@ -1,6 +1,6 @@
-use libadwaita::{prelude::*, Application};
+use libadwaita::{Application, prelude::*};
 use uptodate::ui::MainWindow;
-use uptodate::{setup_actions, AppState, APP_ID};
+use uptodate::{APP_ID, AppState, setup_actions};
 
 fn main() -> glib::ExitCode {
     tracing_subscriber::fmt::init();
