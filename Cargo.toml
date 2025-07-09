@@ -21,7 +21,6 @@ gio = "*"
 toml = "*"
 
 [dev-dependencies]
-tempfile = "*"
 
 [[bin]]
 name = "uptodate"
