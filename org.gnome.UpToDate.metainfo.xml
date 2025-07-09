@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.gnome.UpToDate</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>UpToDate</name>
+  <summary>Modern system update manager</summary>
+  <description>
+    <p>
+      UpToDate is a modern GNOME application that provides a unified interface
+      for updating packages across multiple package managers and systems.
+    </p>
+    <p>
+      Features include:
+    </p>
+    <ul>
+      <li>Support for multiple package managers (pacman, apt, dnf, Flatpak, Snap, etc.)</li>
+      <li>Real-time progress tracking</li>
+      <li>Detailed command output logging</li>
+      <li>Dry run support for testing updates</li>
+      <li>Custom command support</li>
+      <li>Native GNOME interface with libadwaita</li>
+      <li>No external dependencies - native implementation</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/uptodate/uptodate/main/data/screenshots/main.png</image>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/uptodate/uptodate</url>
+  <url type="bugtracker">https://github.com/uptodate/uptodate/issues</url>
+  <developer_name>UpToDate Team</developer_name>
+  <update_contact>contact@uptodate.org</update_contact>
+  <categories>
+    <category>System</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>update</keyword>
+    <keyword>system</keyword>
+    <keyword>package</keyword>
+    <keyword>apt</keyword>
+    <keyword>pacman</keyword>
+    <keyword>flatpak</keyword>
+    <keyword>snap</keyword>
+  </keywords>
+  <provides>
+    <binary>uptodate</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2024-01-01">
+      <description>
+        <p>Initial release</p>
+      </description>
+    </release>
+  </releases>
+</component>

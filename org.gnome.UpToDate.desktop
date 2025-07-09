@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=UpToDate
+Comment=Modern system update manager
+Exec=uptodate
+Icon=software-update-available-symbolic
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true
+MimeType=
+Keywords=update;system;package;apt;pacman;flatpak;snap;

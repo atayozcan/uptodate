@@ -1,0 +1,35 @@
+[package]
+name = "uptodate"
+version = "0.1.0"
+edition = "2024"
+authors = ["Atay Özcan atayozcan@pm.me"]
+description = "A simple application to check for updates"
+homepage = "https://github.com/atayozcan/uptodate"
+repository = "https://github.com/atayozcan/uptodate"
+license = "MIT"
+
+[dependencies]
+libadwaita = { version = "*", features = ["v1_7"] }
+async-std = { version = "*", features = ["attributes", "unstable"] }
+serde = { version = "*", features = ["derive"] }
+anyhow = "*"
+tracing = "*"
+tracing-subscriber = "*"
+dirs = "*"
+glib = "*"
+gio = "*"
+toml = "*"
+
+[dev-dependencies]
+tempfile = "*"
+
+[[bin]]
+name = "uptodate"
+path = "src/main.rs"
+
+[lib]
+name = "uptodate"
+path = "src/lib.rs"
+
+[package.metadata.dbus]
+system-bus-name = "org.gnome.UpToDate"
