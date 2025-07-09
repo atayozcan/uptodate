@@ -1,13 +1,7 @@
 use crate::{updater::UpdateEvent, AppState};
 use async_std::channel::Receiver;
 use libadwaita::{
-    gtk::{self, Box, Button, Label, ListBox},
-    prelude::*,
-    ApplicationWindow,
-    Clamp,
-    ExpanderRow,
-    HeaderBar,
-    PreferencesGroup,
+    gtk::{self, Box, Button, Label, ListBox}, prelude::*, ApplicationWindow, Clamp, ExpanderRow, HeaderBar, PreferencesGroup,
     SwitchRow,
     ToastOverlay,
     ToolbarView,
@@ -41,7 +35,7 @@ impl MainWindow {
         toolbar_view.add_top_bar(&header_bar);
 
         let main_box = Box::new(gtk::Orientation::Vertical, 12);
-        
+
         // Use Clamp for better centering and responsive design
         let clamp = Clamp::builder()
             .maximum_size(1000)
@@ -53,9 +47,7 @@ impl MainWindow {
             .build();
 
         // Control panel - using PreferencesGroup for better styling
-        let control_group = PreferencesGroup::builder()
-            .title("Controls")
-            .build();
+        let control_group = PreferencesGroup::builder().title("Controls").build();
 
         // Create a box to center the buttons
         let button_box = Box::new(gtk::Orientation::Horizontal, 6);
@@ -102,7 +94,7 @@ impl MainWindow {
         let sources_list = ListBox::new();
         sources_list.set_selection_mode(gtk::SelectionMode::None);
         sources_list.add_css_class("boxed-list");
-        
+
         sources_group.add(&sources_list);
         main_box.append(&sources_group);
 
@@ -224,7 +216,7 @@ impl MainWindow {
                             expander_row.set_subtitle(&manager.description);
                         }
 
-                        // Create status label that we can update
+                        // Create a status label that we can update
                         let status_label = Label::new(Some("Ready"));
                         status_label.set_halign(gtk::Align::Start);
                         status_label.add_css_class("body");
@@ -258,21 +250,36 @@ impl MainWindow {
                     // Update all sources to show they're starting
                 }
                 UpdateEvent::SourceStarted(name) => {
-                    println!("DEBUG: SourceStarted for {}", name);
-                    Self::update_source_status(sources_list.clone(), name, "Running...".to_string(), true);
+                    println!("DEBUG: SourceStarted for {name}");
+                    Self::update_source_status(
+                        sources_list.clone(),
+                        name,
+                        "Running...".to_string(),
+                        true,
+                    );
                 }
                 UpdateEvent::SourceProgress(name, msg) => {
-                    println!("DEBUG: SourceProgress for {}: {}", name, msg);
+                    println!("DEBUG: SourceProgress for {name}: {msg}");
                     Self::update_source_status(sources_list.clone(), name, msg, true);
                 }
                 UpdateEvent::SourceCompleted(name, success) => {
                     let status = if success { "✓ Success" } else { "✗ Failed" };
-                    println!("DEBUG: SourceCompleted for {}: {}", name, status);
-                    Self::update_source_status(sources_list.clone(), name, status.to_string(), false);
+                    println!("DEBUG: SourceCompleted for {name}: {status}");
+                    Self::update_source_status(
+                        sources_list.clone(),
+                        name,
+                        status.to_string(),
+                        false,
+                    );
                 }
                 UpdateEvent::SourceError(name, msg) => {
-                    println!("DEBUG: SourceError for {}: {}", name, msg);
-                    Self::update_source_status(sources_list.clone(), name, format!("Error: {}", msg), false);
+                    println!("DEBUG: SourceError for {name}: {msg}");
+                    Self::update_source_status(
+                        sources_list.clone(),
+                        name,
+                        format!("Error: {msg}"),
+                        false,
+                    );
                 }
                 UpdateEvent::Completed(_success) => {
                     start_button.set_sensitive(true);
@@ -284,27 +291,31 @@ impl MainWindow {
         }
     }
 
-    fn update_source_status(sources_list: ListBox, source_name: String, status: String, _is_running: bool) {
-        println!("DEBUG: update_source_status called for {}: {}", source_name, status);
+    fn update_source_status(
+        sources_list: ListBox,
+        source_name: String,
+        status: String,
+        _is_running: bool,
+    ) {
+        println!("DEBUG: update_source_status called for {source_name}: {status}");
         glib::spawn_future_local(async move {
-            
             // Find the ExpanderRow for this source
             let mut child = sources_list.first_child();
             while let Some(row) = child {
                 let next = row.next_sibling();
                 if let Ok(expander_row) = row.downcast::<ExpanderRow>() {
                     if expander_row.title() == source_name {
-                        println!("DEBUG: Found ExpanderRow for {}", source_name);
+                        println!("DEBUG: Found ExpanderRow for {source_name}");
                         // Force expand the row to show progress
                         expander_row.set_expanded(true);
-                        
+
                         // The children of ExpanderRow are the rows we added
                         // We need to find our label in the added rows
                         let mut row_child = expander_row.first_child();
                         while let Some(added_row) = row_child {
                             let next_row = added_row.next_sibling();
                             if let Ok(label) = added_row.downcast::<Label>() {
-                                println!("DEBUG: Found label, updating to: {}", status);
+                                println!("DEBUG: Found label, updating to: {status}");
                                 label.set_text(&status);
                                 break;
                             }

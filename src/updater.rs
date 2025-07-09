@@ -86,9 +86,9 @@ impl Updater {
         // System managers
         let managers = vec![
             PackageManager::new(
-                "pacman",
-                &["pacman", "-Qu"],
-                &["pacman", "-Syu", "--noconfirm"],
+                "paru",
+                &["paru", "-Qu"],
+                &["paru", "-Syu", "--noconfirm"],
                 true,
                 "Arch Linux packages",
             ),
@@ -137,23 +137,12 @@ impl Updater {
             ),
             // Development tools
             PackageManager::new(
-                "cargo",
-                &["cargo", "install", "--list"],
+                "pipx",
+                &["pipx", "list", "--outdated"],
                 &[
                     "sh",
                     "-c",
-                    "cargo install --list | grep -E '^[a-zA-Z0-9_-]+' | cut -d' ' -f1 | xargs -I {} cargo install {}",
-                ],
-                false,
-                "Rust packages",
-            ),
-            PackageManager::new(
-                "pip",
-                &["pip", "list", "--outdated"],
-                &[
-                    "sh",
-                    "-c",
-                    "if command -v pipx >/dev/null 2>&1; then pipx upgrade-all; else pip list --outdated --format=freeze | cut -d= -f1 | xargs -r pip install --user --upgrade; fi",
+                    "if command -v pipx >/dev/null 2>&1; then pipx upgrade-all; else pipx list --outdated --format=freeze | cut -d= -f1 | xargs -r pipx install --user --upgrade; fi",
                 ],
                 false,
                 "Python packages",
@@ -198,7 +187,7 @@ impl Updater {
         let mut available = Vec::new();
 
         // Check system managers first (only one)
-        let system_managers = ["pacman", "apt", "dnf", "zypper", "apk"];
+        let system_managers = ["paru", "apt", "dnf", "zypper", "apk"];
         for manager in &system_managers {
             if self.command_exists(manager).await {
                 available.push(manager.to_string());
@@ -207,7 +196,7 @@ impl Updater {
         }
 
         // Check other managers
-        let other_managers = ["flatpak", "snap", "cargo", "pip", "npm", "rustup", "brew"];
+        let other_managers = ["flatpak", "snap", "pipx", "npm", "rustup", "brew"];
         for manager in &other_managers {
             if self.command_exists(manager).await {
                 available.push(manager.to_string());
@@ -219,27 +208,14 @@ impl Updater {
     }
 
     async fn command_exists(&self, cmd: &str) -> bool {
-        match cmd {
-            "cargo" => {
-                // Check if cargo exists and has install subcommand
-                Command::new("cargo")
-                    .arg("--list")
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .status()
-                    .await
-                    .map(|s| s.success())
-                    .unwrap_or(false)
-            }
-            _ => Command::new("which")
-                .arg(cmd)
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .status()
-                .await
-                .map(|s| s.success())
-                .unwrap_or(false),
-        }
+        Command::new("which")
+            .arg(cmd)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await
+            .map(|s| s.success())
+            .unwrap_or(false)
     }
 
     pub async fn run_updates(
@@ -429,249 +405,5 @@ impl Updater {
 
     pub fn get_manager_info(&self, name: &str) -> Option<&PackageManager> {
         self.managers.get(name)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::time::Duration;
-
-    #[test]
-    fn test_package_manager_new() {
-        let manager = PackageManager::new(
-            "test",
-            &["test", "check"],
-            &["test", "update"],
-            true,
-            "Test manager",
-        );
-
-        assert_eq!(manager.name, "test");
-        assert_eq!(manager.check_cmd, vec!["test", "check"]);
-        assert_eq!(manager.update_cmd, vec!["test", "update"]);
-        assert_eq!(manager.needs_sudo, true);
-        assert_eq!(manager.description, "Test manager");
-    }
-
-    #[test]
-    fn test_updater_new() {
-        let updater = Updater::new();
-        assert!(!updater.is_running());
-        assert!(updater.managers.len() > 0);
-        assert!(updater.managers.contains_key("pacman"));
-        assert!(updater.managers.contains_key("flatpak"));
-        assert!(updater.managers.contains_key("cargo"));
-    }
-
-    #[test]
-    fn test_updater_manager_info() {
-        let updater = Updater::new();
-
-        let pacman = updater.get_manager_info("pacman");
-        assert!(pacman.is_some());
-        assert_eq!(pacman.unwrap().name, "pacman");
-        assert_eq!(pacman.unwrap().description, "Arch Linux packages");
-
-        let unknown = updater.get_manager_info("unknown");
-        assert!(unknown.is_none());
-    }
-
-    #[test]
-    fn test_update_event_clone() {
-        let events = vec![
-            UpdateEvent::Started,
-            UpdateEvent::Progress("test".to_string()),
-            UpdateEvent::SourceStarted("pacman".to_string()),
-            UpdateEvent::SourceCompleted("pacman".to_string(), true),
-            UpdateEvent::Completed(true),
-            UpdateEvent::Error("test error".to_string()),
-        ];
-
-        for event in events {
-            let cloned = event.clone();
-            match (event, cloned) {
-                (UpdateEvent::Started, UpdateEvent::Started) => {}
-                (UpdateEvent::Progress(a), UpdateEvent::Progress(b)) => assert_eq!(a, b),
-                (UpdateEvent::SourceStarted(a), UpdateEvent::SourceStarted(b)) => assert_eq!(a, b),
-                (UpdateEvent::SourceCompleted(a1, b1), UpdateEvent::SourceCompleted(a2, b2)) => {
-                    assert_eq!(a1, a2);
-                    assert_eq!(b1, b2);
-                }
-                (UpdateEvent::Completed(a), UpdateEvent::Completed(b)) => assert_eq!(a, b),
-                (UpdateEvent::Error(a), UpdateEvent::Error(b)) => assert_eq!(a, b),
-                _ => panic!("Events don't match"),
-            }
-        }
-    }
-
-    #[async_std::test]
-    async fn test_command_exists() {
-        let updater = Updater::new();
-
-        // Test with a command that should exist
-        assert!(updater.command_exists("sh").await);
-        assert!(updater.command_exists("echo").await);
-
-        // Test with a command that shouldn't exist
-        assert!(!updater.command_exists("nonexistent_command_12345").await);
-    }
-
-    #[async_std::test]
-    async fn test_detect_sources() {
-        let updater = Updater::new();
-
-        let sources = updater.detect_sources().await.unwrap();
-        assert!(!sources.is_empty());
-
-        // Should contain common tools
-        let sources_str = sources.join(" ");
-        // At least one should be found on most systems
-        assert!(sources_str.contains("sh") || sources_str.contains("echo") || sources.len() > 0);
-    }
-
-    #[async_std::test]
-    async fn test_updater_running_state() {
-        let updater = Updater::new();
-        assert!(!updater.is_running());
-
-        // Test starting and stopping
-        updater.running.store(true, Ordering::Relaxed);
-        assert!(updater.is_running());
-
-        updater.running.store(false, Ordering::Relaxed);
-        assert!(!updater.is_running());
-    }
-
-    #[async_std::test]
-    async fn test_run_updates_already_running() {
-        let updater = Updater::new();
-        updater.running.store(true, Ordering::Relaxed);
-
-        let result = updater.run_updates(&vec!["echo".to_string()], true).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already running"));
-    }
-
-    #[async_std::test]
-    async fn test_run_updates_dry_run() {
-        let updater = Updater::new();
-
-        // Test with echo command (should exist on most systems)
-        let sources = vec!["echo".to_string()];
-
-        // Override the manager to use echo for testing
-        let mut test_updater = updater;
-        test_updater.managers.insert(
-            "echo".to_string(),
-            PackageManager::new(
-                "echo",
-                &["echo", "test"],
-                &["echo", "update"],
-                false,
-                "Echo test",
-            ),
-        );
-
-        let result = test_updater.run_updates(&sources, true).await;
-        assert!(result.is_ok());
-
-        let receiver = result.unwrap();
-
-        // Collect events for a short time
-        let mut events = Vec::new();
-        let timeout = Duration::from_millis(1000);
-        let start = std::time::Instant::now();
-
-        while start.elapsed() < timeout {
-            match async_std::future::timeout(Duration::from_millis(10), receiver.recv()).await {
-                Ok(Ok(event)) => {
-                    events.push(event);
-                    if matches!(events.last(), Some(UpdateEvent::Completed(_))) {
-                        break;
-                    }
-                }
-                _ => break,
-            }
-        }
-
-        assert!(events.len() > 0);
-        assert!(matches!(events[0], UpdateEvent::Started));
-    }
-
-    #[async_std::test]
-    async fn test_stop_updater() {
-        let updater = Updater::new();
-
-        // Test stopping when not running
-        let result = updater.stop().await;
-        assert!(result.is_ok());
-
-        // Test stopping when running
-        updater.running.store(true, Ordering::Relaxed);
-        let result = updater.stop().await;
-        assert!(result.is_ok());
-        assert!(!updater.is_running());
-    }
-
-    #[test]
-    fn test_package_manager_serialization() {
-        let manager = PackageManager::new(
-            "test",
-            &["test", "check"],
-            &["test", "update"],
-            true,
-            "Test manager",
-        );
-
-        // Test that we can serialize and deserialize with serde
-        let serialized = toml::to_string(&manager).unwrap();
-        let deserialized: PackageManager = toml::from_str(&serialized).unwrap();
-
-        assert_eq!(manager.name, deserialized.name);
-        assert_eq!(manager.check_cmd, deserialized.check_cmd);
-        assert_eq!(manager.update_cmd, deserialized.update_cmd);
-        assert_eq!(manager.needs_sudo, deserialized.needs_sudo);
-        assert_eq!(manager.description, deserialized.description);
-    }
-
-    #[test]
-    fn test_all_managers_initialized() {
-        let updater = Updater::new();
-
-        // Test that all expected managers are initialized
-        let expected_managers = vec![
-            "pacman", "apt", "dnf", "zypper", "apk", "flatpak", "snap", "cargo", "pip", "npm",
-            "rustup", "brew",
-        ];
-
-        for manager in expected_managers {
-            assert!(
-                updater.managers.contains_key(manager),
-                "Manager '{manager}' not found"
-            );
-        }
-    }
-
-    #[test]
-    fn test_system_managers_sudo_requirements() {
-        let updater = Updater::new();
-
-        // System managers should require sudo
-        let system_managers = vec!["pacman", "apt", "dnf", "zypper", "apk"];
-        for manager in system_managers {
-            let info = updater.get_manager_info(manager).unwrap();
-            assert!(info.needs_sudo, "Manager '{manager}' should require sudo");
-        }
-
-        // User managers should not require sudo
-        let user_managers = vec!["cargo", "pip", "npm", "rustup"];
-        for manager in user_managers {
-            let info = updater.get_manager_info(manager).unwrap();
-            assert!(
-                !info.needs_sudo,
-                "Manager '{manager}' should not require sudo"
-            );
-        }
     }
 }

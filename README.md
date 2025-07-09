@@ -46,9 +46,9 @@ excluded_packages = []
 
 ## Supported Package Managers
 
-- **System**: pacman, apt, dnf, zypper, yum, apk
+- **System**: paru, apt, dnf, zypper, yum, apk
 - **Universal**: Flatpak, Snap
-- **Programming Languages**: Cargo (Rust), pip/pipx (Python), npm/yarn/pnpm (Node.js), gem (Ruby), composer (PHP), go
+- **Programming Languages**: pipx (Python), npm/yarn/pnpm (Node.js), gem (Ruby), composer (PHP), go
 - **Development Tools**: VS Code/VSCodium extensions, Rustup
 - **Others**: Homebrew, Nix, custom commands
 
