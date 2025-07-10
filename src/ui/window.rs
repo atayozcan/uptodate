@@ -1,14 +1,22 @@
-use crate::{updater::UpdateEvent, AppState};
+use crate::{AppState, updater::UpdateEvent};
 use async_std::channel::Receiver;
+use gtk::gio;
+use gtk::{Align, Box, Button, Image, ListBox, Orientation, ProgressBar};
 use libadwaita::{
-    gtk::{self, Box, Button, Label, ListBox}, prelude::*, ApplicationWindow, Clamp, ExpanderRow, HeaderBar, PreferencesGroup,
-    SwitchRow,
-    ToastOverlay,
-    ToolbarView,
+    ActionRow, ApplicationWindow, Banner, SwitchRow, ToastOverlay, glib, gtk, prelude::*,
 };
 use std::collections::HashMap;
 use tracing::error;
 
+#[derive(Debug, Clone)]
+pub enum BannerType {
+    Success,
+    Warning,
+    Error,
+    Info,
+}
+
+#[derive(Debug)]
 pub struct MainWindow {
     pub window: ApplicationWindow,
     pub state: AppState,
@@ -16,92 +24,36 @@ pub struct MainWindow {
     pub stop_button: Button,
     pub sources_list: ListBox,
     pub dry_run_switch: SwitchRow,
-    pub source_rows: HashMap<String, (ExpanderRow, Label)>,
+    pub source_rows: HashMap<String, (ActionRow, Box, ProgressBar)>,
+    pub toast_overlay: ToastOverlay,
+    pub main_box: Box,
+    pub current_banner: Option<Banner>,
 }
 
 impl MainWindow {
     pub fn new(app: &libadwaita::Application, state: AppState) -> Self {
-        let window = ApplicationWindow::builder()
-            .application(app)
-            .title("UpToDate")
-            .default_width(800)
-            .default_height(600)
-            .build();
+        let builder = gtk::Builder::from_string(include_str!("window.ui"));
 
-        let toast_overlay = ToastOverlay::new();
-        let toolbar_view = ToolbarView::new();
+        // Get widgets from the builder
+        let (
+            window,
+            start_button,
+            stop_button,
+            sources_list,
+            dry_run_switch,
+            toast_overlay,
+            main_box,
+        ) = (
+            builder.object::<ApplicationWindow>("MainWindow").unwrap(),
+            builder.object::<Button>("start_button").unwrap(),
+            builder.object::<Button>("stop_button").unwrap(),
+            builder.object::<ListBox>("sources_list").unwrap(),
+            builder.object::<SwitchRow>("dry_run_switch").unwrap(),
+            builder.object::<ToastOverlay>("toast_overlay").unwrap(),
+            builder.object::<Box>("main_box").unwrap(),
+        );
 
-        let header_bar = HeaderBar::new();
-        toolbar_view.add_top_bar(&header_bar);
-
-        let main_box = Box::new(gtk::Orientation::Vertical, 12);
-
-        // Use Clamp for better centering and responsive design
-        let clamp = Clamp::builder()
-            .maximum_size(1000)
-            .tightening_threshold(600)
-            .margin_start(12)
-            .margin_end(12)
-            .margin_top(12)
-            .margin_bottom(12)
-            .build();
-
-        // Control panel - using PreferencesGroup for better styling
-        let control_group = PreferencesGroup::builder().title("Controls").build();
-
-        // Create a box to center the buttons
-        let button_box = Box::new(gtk::Orientation::Horizontal, 6);
-        button_box.set_halign(gtk::Align::Center);
-        button_box.add_css_class("linked");
-
-        let start_button = Button::with_label("Start Updates");
-        start_button.add_css_class("suggested-action");
-        start_button.add_css_class("pill");
-
-        let stop_button = Button::with_label("Stop");
-        stop_button.add_css_class("destructive-action");
-        stop_button.add_css_class("pill");
-        stop_button.set_sensitive(false);
-
-        button_box.append(&start_button);
-        button_box.append(&stop_button);
-
-        // Wrap buttons in a proper container for the preferences group
-        let button_container = Box::new(gtk::Orientation::Vertical, 0);
-        button_container.set_margin_top(12);
-        button_container.set_margin_bottom(12);
-        button_container.append(&button_box);
-
-        // Dry run switch as a SwitchRow in its own group
-        let dry_run_switch = SwitchRow::builder()
-            .title("Dry Run")
-            .subtitle("Preview updates without applying them")
-            .build();
-
-        let switch_group = PreferencesGroup::new();
-        switch_group.add(&dry_run_switch);
-
-        control_group.add(&button_container);
-        main_box.append(&control_group);
-        main_box.append(&switch_group);
-
-        // Sources section with expandable progress
-        let sources_group = PreferencesGroup::builder()
-            .title("Package Managers")
-            .description("Select package managers to update and view their progress")
-            .build();
-
-        let sources_list = ListBox::new();
-        sources_list.set_selection_mode(gtk::SelectionMode::None);
-        sources_list.add_css_class("boxed-list");
-
-        sources_group.add(&sources_list);
-        main_box.append(&sources_group);
-
-        clamp.set_child(Some(&main_box));
-        toolbar_view.set_content(Some(&clamp));
-        toast_overlay.set_child(Some(&toolbar_view));
-        window.set_content(Some(&toast_overlay));
+        window.set_application(Some(app));
 
         let mut window_self = Self {
             window,
@@ -111,9 +63,13 @@ impl MainWindow {
             sources_list,
             dry_run_switch,
             source_rows: HashMap::new(),
+            toast_overlay,
+            main_box,
+            current_banner: None,
         };
 
         window_self.setup_actions();
+        window_self.setup_keyboard_shortcuts();
         window_self.load_sources();
         window_self
     }
@@ -134,42 +90,42 @@ impl MainWindow {
 
             glib::spawn_future_local(async move {
                 // Get enabled sources
-                let mut enabled_sources = Vec::new();
-                let mut child = sources_list.first_child();
-                while let Some(row) = child {
-                    let next = row.next_sibling();
-                    if let Ok(expander_row) = row.downcast::<ExpanderRow>() {
-                        if expander_row.enables_expansion() {
-                            let title = expander_row.title();
-                            enabled_sources.push(title.to_string());
-                        }
-                    }
-                    child = next;
-                }
+                let enabled_sources = Self::collect_enabled_sources(&sources_list);
 
                 if enabled_sources.is_empty() {
                     return;
-                }
+                } else {
+                    {}
+                };
 
                 start_button.set_sensitive(false);
                 stop_button.set_sensitive(true);
 
-                match state.updater.run_updates(&enabled_sources, dry_run).await {
-                    Ok(receiver) => {
-                        Self::handle_updates(
-                            receiver,
-                            sources_list,
-                            start_button.clone(),
-                            stop_button.clone(),
-                        )
-                        .await;
-                    }
-                    Err(e) => {
-                        error!("Failed to start updates: {e}");
-                        start_button.set_sensitive(true);
-                        stop_button.set_sensitive(false);
-                    }
-                }
+                state
+                    .updater
+                    .run_updates(&enabled_sources, dry_run)
+                    .await
+                    .map_or_else(
+                        |e| {
+                            error!("Failed to start updates: {e}");
+                            start_button.set_sensitive(true);
+                            stop_button.set_sensitive(false);
+                        },
+                        |receiver| {
+                            let sources_list = sources_list.clone();
+                            let start_button = start_button.clone();
+                            let stop_button = stop_button.clone();
+                            glib::spawn_future_local(async move {
+                                Self::handle_updates(
+                                    receiver,
+                                    sources_list,
+                                    start_button,
+                                    stop_button,
+                                )
+                                .await;
+                            });
+                        },
+                    );
             });
         });
 
@@ -183,13 +139,52 @@ impl MainWindow {
             let stop_button = stop_button_stop.clone();
 
             glib::spawn_future_local(async move {
-                if let Err(e) = state.updater.stop().await {
-                    error!("Failed to stop updates: {e}");
-                }
+                state
+                    .updater
+                    .stop()
+                    .await
+                    .is_err()
+                    .then(|| error!("Failed to stop updates"));
+
                 start_button.set_sensitive(true);
                 stop_button.set_sensitive(false);
             });
         });
+    }
+
+    fn setup_keyboard_shortcuts(&self) {
+        // Create actions for keyboard shortcuts
+        self.create_button_action("start-updates", &self.start_button);
+        self.create_button_action("stop-updates", &self.stop_button);
+
+        let toggle_dry_run = gio::SimpleAction::new("toggle-dry-run", None);
+        toggle_dry_run.connect_activate(glib::clone!(
+            #[weak(rename_to = switch)]
+            self.dry_run_switch,
+            move |_, _| {
+                switch.set_active(!switch.is_active());
+            }
+        ));
+        self.window.add_action(&toggle_dry_run);
+
+        // Set up keyboard shortcuts
+        if let Some(app) = self.window.application() {
+            app.set_accels_for_action("win.start-updates", &["<Primary>Return"]);
+            app.set_accels_for_action("win.stop-updates", &["Escape"]);
+            app.set_accels_for_action("win.toggle-dry-run", &["<Primary>d"]);
+        }
+    }
+
+    fn create_button_action(&self, action_name: &str, button: &Button) {
+        let action = gio::SimpleAction::new(action_name, None);
+        action.connect_activate(glib::clone!(
+            #[weak]
+            button,
+            move |_, _| {
+                button.emit_clicked();
+            }
+        ));
+        self.window.add_action(&action);
     }
 
     fn load_sources(&mut self) {
@@ -197,45 +192,115 @@ impl MainWindow {
         let sources_list = self.sources_list.clone();
 
         glib::spawn_future_local(async move {
-            match state.updater.detect_sources().await {
-                Ok(sources) => {
-                    for source in sources {
-                        // Read config to see if this source is enabled
-                        let config = state.config.read().await;
-                        let is_enabled = config.is_source_enabled(&source);
-                        drop(config);
-
-                        // Create an ExpanderRow for each source
-                        let expander_row = ExpanderRow::builder()
-                            .title(&source)
-                            .show_enable_switch(true)
-                            .enable_expansion(is_enabled)
-                            .build();
-
-                        if let Some(manager) = state.updater.get_manager_info(&source) {
-                            expander_row.set_subtitle(&manager.description);
-                        }
-
-                        // Create a status label that we can update
-                        let status_label = Label::new(Some("Ready"));
-                        status_label.set_halign(gtk::Align::Start);
-                        status_label.add_css_class("body");
-                        status_label.set_margin_start(12);
-                        status_label.set_margin_end(12);
-                        status_label.set_margin_top(6);
-                        status_label.set_margin_bottom(6);
-
-                        // Add the status label as a child row
-                        expander_row.add_row(&status_label);
-
-                        sources_list.append(&expander_row);
-                    }
-                }
-                Err(e) => {
-                    error!("Failed to detect sources: {e}");
-                }
-            }
+            state.updater.detect_sources().await.map_or_else(
+                |e| error!("Failed to detect sources: {e}"),
+                |sources| {
+                    sources.into_iter().for_each(|source| {
+                        let sources_list = sources_list.clone();
+                        let state = state.clone();
+                        glib::spawn_future_local(async move {
+                            Self::create_source_row(source, sources_list, state).await;
+                        });
+                    });
+                },
+            );
         });
+    }
+
+    fn collect_enabled_sources(sources_list: &ListBox) -> Vec<String> {
+        let mut enabled_sources = Vec::new();
+        let mut child = sources_list.first_child();
+
+        while let Some(row) = child {
+            let next = row.next_sibling();
+
+            row.downcast::<gtk::ListBoxRow>()
+                .ok()
+                .and_then(|list_box_row| list_box_row.child())
+                .and_then(|row_container| row_container.downcast::<Box>().ok())
+                .and_then(|box_container| box_container.first_child())
+                .and_then(|action_row_widget| action_row_widget.downcast::<ActionRow>().ok())
+                .and_then(|action_row| {
+                    Self::find_switch_recursive(
+                        &action_row
+                            .last_child()?
+                            .downcast::<Box>()
+                            .ok()?
+                            .upcast::<gtk::Widget>(),
+                    )
+                    .filter(|switch| switch.is_active())
+                    .and_then(|_| action_row.subtitle())
+                    .map(|name| enabled_sources.push(name.to_string()))
+                });
+
+            child = next;
+        }
+
+        enabled_sources
+    }
+
+    fn find_switch_recursive(widget: &gtk::Widget) -> Option<gtk::Switch> {
+        widget.clone().downcast::<gtk::Switch>().ok().or_else(|| {
+            let mut child = widget.first_child();
+            while let Some(child_widget) = child {
+                if let Some(switch) = Self::find_switch_recursive(&child_widget) {
+                    return Some(switch);
+                }
+                child = child_widget.next_sibling();
+            }
+            None
+        })
+    }
+
+    async fn create_source_row(source: String, sources_list: ListBox, state: AppState) {
+        let config = state.config.read().await;
+        let is_enabled = config.is_source_enabled(&source);
+        drop(config);
+
+        let action_row = ActionRow::new();
+
+        // Set title and subtitle using
+        state.updater.get_manager_info(&source).map_or_else(
+            || action_row.set_title(&source),
+            |manager| {
+                action_row.set_title(&manager.description);
+                action_row.set_subtitle(&manager.name);
+            },
+        );
+
+        // Create and configure components functionally
+        let switch = gtk::Switch::new();
+        switch.set_active(is_enabled);
+        switch.set_valign(Align::Center);
+
+        let status_box = Box::new(Orientation::Horizontal, 6);
+        status_box.set_halign(Align::End);
+        status_box.set_valign(Align::Center);
+
+        let status_icon = Image::from_icon_name("emblem-default-symbolic");
+        status_icon.add_css_class("status-icon");
+
+        let progress_bar = ProgressBar::new();
+        progress_bar.set_visible(false);
+        progress_bar.set_margin_top(6);
+        progress_bar.set_margin_bottom(6);
+        progress_bar.set_margin_start(12);
+        progress_bar.set_margin_end(12);
+        progress_bar.add_css_class("osd");
+
+        let row_container = Box::new(Orientation::Vertical, 0);
+
+        // Chain operations functionally
+        status_box.append(&status_icon);
+        status_box.append(&switch);
+
+        action_row.add_suffix(&status_box);
+        action_row.set_activatable_widget(Some(&switch));
+
+        row_container.append(&action_row);
+        row_container.append(&progress_bar);
+
+        sources_list.append(&row_container);
     }
 
     async fn handle_updates(
@@ -244,46 +309,59 @@ impl MainWindow {
         start_button: Button,
         stop_button: Button,
     ) {
+        let mut completed_count = 0;
+        let mut failed_count = 0;
         while let Ok(event) = receiver.recv().await {
             match event {
-                UpdateEvent::Started => {
-                    // Update all sources to show they're starting
-                }
+                UpdateEvent::Started => {}
                 UpdateEvent::SourceStarted(name) => {
-                    println!("DEBUG: SourceStarted for {name}");
                     Self::update_source_status(
                         sources_list.clone(),
                         name,
-                        "Running...".to_string(),
+                        "Running".to_string(),
                         true,
                     );
                 }
-                UpdateEvent::SourceProgress(name, msg) => {
-                    println!("DEBUG: SourceProgress for {name}: {msg}");
-                    Self::update_source_status(sources_list.clone(), name, msg, true);
+                UpdateEvent::SourceProgress(name, _msg) => {
+                    Self::update_source_status(
+                        sources_list.clone(),
+                        name,
+                        "Running".to_string(),
+                        true,
+                    );
                 }
                 UpdateEvent::SourceCompleted(name, success) => {
-                    let status = if success { "✓ Success" } else { "✗ Failed" };
-                    println!("DEBUG: SourceCompleted for {name}: {status}");
+                    let status = if success { "Success" } else { "Failed" };
                     Self::update_source_status(
                         sources_list.clone(),
                         name,
                         status.to_string(),
                         false,
                     );
+
+                    if success {
+                        completed_count += 1;
+                    } else {
+                        failed_count += 1;
+                    }
                 }
-                UpdateEvent::SourceError(name, msg) => {
-                    println!("DEBUG: SourceError for {name}: {msg}");
+                UpdateEvent::SourceError(name, _msg) => {
                     Self::update_source_status(
                         sources_list.clone(),
                         name,
-                        format!("Error: {msg}"),
+                        "Error".to_string(),
                         false,
                     );
+                    failed_count += 1;
                 }
                 UpdateEvent::Completed(_success) => {
                     start_button.set_sensitive(true);
                     stop_button.set_sensitive(false);
+
+                    // Show completion notification
+                    Self::show_completion_notification(completed_count, failed_count);
+
+                    // TODO: Show banner - need to pass window reference for this
                     break;
                 }
                 _ => {}
@@ -295,38 +373,192 @@ impl MainWindow {
         sources_list: ListBox,
         source_name: String,
         status: String,
-        _is_running: bool,
+        is_running: bool,
     ) {
-        println!("DEBUG: update_source_status called for {source_name}: {status}");
         glib::spawn_future_local(async move {
-            // Find the ExpanderRow for this source
-            let mut child = sources_list.first_child();
-            while let Some(row) = child {
-                let next = row.next_sibling();
-                if let Ok(expander_row) = row.downcast::<ExpanderRow>() {
-                    if expander_row.title() == source_name {
-                        println!("DEBUG: Found ExpanderRow for {source_name}");
-                        // Force expand the row to show progress
-                        expander_row.set_expanded(true);
-
-                        // The children of ExpanderRow are the rows we added
-                        // We need to find our label in the added rows
-                        let mut row_child = expander_row.first_child();
-                        while let Some(added_row) = row_child {
-                            let next_row = added_row.next_sibling();
-                            if let Ok(label) = added_row.downcast::<Label>() {
-                                println!("DEBUG: Found label, updating to: {status}");
-                                label.set_text(&status);
-                                break;
-                            }
-                            row_child = next_row;
-                        }
-                        break;
-                    }
+            if let Some((action_row, progress_bar)) =
+                Self::find_source_row(&sources_list, &source_name)
+            {
+                // Update the progress bar
+                if is_running {
+                    progress_bar.set_visible(true);
+                    progress_bar.pulse();
+                    Self::setup_progress_pulse(progress_bar.clone());
+                } else {
+                    progress_bar.set_visible(false);
                 }
-                child = next;
+
+                // Update the status icon
+                Self::update_status_icon(&action_row, &status, is_running);
             }
         });
+    }
+
+    fn find_source_row(
+        sources_list: &ListBox,
+        source_name: &str,
+    ) -> Option<(ActionRow, ProgressBar)> {
+        let mut child = sources_list.first_child();
+        while let Some(row) = child {
+            let next = row.next_sibling();
+
+            let result = row
+                .downcast::<gtk::ListBoxRow>()
+                .ok()
+                .and_then(|list_box_row| list_box_row.child())
+                .and_then(|row_container| row_container.downcast::<Box>().ok())
+                .and_then(|box_container| box_container.first_child())
+                .and_then(|action_row_widget| {
+                    let action_row = action_row_widget.clone().downcast::<ActionRow>().ok()?;
+                    let progress_bar = action_row_widget
+                        .next_sibling()?
+                        .downcast::<ProgressBar>()
+                        .ok()?;
+
+                    action_row
+                        .subtitle()
+                        .filter(|subtitle| subtitle.as_str() == source_name)
+                        .map(|_| (action_row, progress_bar))
+                });
+
+            if let Some(found) = result {
+                return Some(found);
+            }
+
+            child = next;
+        }
+        None
+    }
+
+    fn setup_progress_pulse(progress_bar: ProgressBar) {
+        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+            if progress_bar.is_visible() {
+                {
+                    progress_bar.pulse();
+                    glib::ControlFlow::Continue
+                }
+            } else {
+                glib::ControlFlow::Break
+            }
+        });
+    }
+
+    fn update_status_icon(action_row: &ActionRow, status: &str, is_running: bool) {
+        if let Some(status_icon) = action_row
+            .last_child()
+            .and_then(|suffix_box| suffix_box.downcast::<Box>().ok())
+            .and_then(|status_box| status_box.first_child())
+            .and_then(|status_icon_widget| status_icon_widget.downcast::<Image>().ok())
+        {
+            // Clear existing CSS classes
+            ["success", "error", "running", "warning"]
+                .iter()
+                .for_each(|class| status_icon.remove_css_class(class));
+
+            // Set icon and class based on status
+            let (icon_name, css_class) = match (is_running, status) {
+                (true, _) => ("process-working-symbolic", "running"),
+                (false, s) if s.contains("Success") || s.contains("✓") => {
+                    ("emblem-ok-symbolic", "success")
+                }
+                (false, s) if s.contains("Failed") || s.contains("Error") || s.contains("✗") => {
+                    ("dialog-error-symbolic", "error")
+                }
+                _ => ("emblem-default-symbolic", ""),
+            };
+
+            status_icon.set_icon_name(Some(icon_name));
+            (!css_class.is_empty()).then(|| status_icon.add_css_class(css_class));
+        }
+    }
+
+    fn show_completion_notification(completed: i32, failed: i32) {
+        let notification = gio::Notification::new("Updates Complete");
+
+        let message = match (completed, failed) {
+            (0, 0) => "No updates were performed".to_string(),
+            (c, 0) => format!("Successfully updated {c} package manager(s)"),
+            (0, f) => format!("Failed to update {f} package manager(s)"),
+            (c, f) => format!("Updated {c} package manager(s), {f} failed"),
+        };
+
+        notification.set_body(Some(&message));
+        notification.set_icon(&gio::ThemedIcon::new("system-software-update"));
+
+        if let Some(app) = gio::Application::default() {
+            app.send_notification(Some("update-complete"), &notification);
+        }
+    }
+
+    /// Shows a banner with the specified message and type.
+    ///
+    /// If a banner is already visible, it will be replaced with the new one.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The message to display in the banner
+    /// * `banner_type` - The type of banner (Success, Warning, Error, Info)
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// window.show_banner("Updates completed successfully!", BannerType::Success);
+    /// ```
+    pub fn show_banner(&mut self, message: &str, banner_type: BannerType) {
+        // Remove the existing banner if present
+        if let Some(ref current_banner) = self.current_banner {
+            self.main_box.remove(current_banner);
+        }
+
+        let banner = Banner::builder().title(message).revealed(true).build();
+
+        match banner_type {
+            BannerType::Success => banner.add_css_class("success"),
+            BannerType::Warning => banner.add_css_class("warning"),
+            BannerType::Error => banner.add_css_class("error"),
+            BannerType::Info => banner.add_css_class("info"),
+        }
+
+        // Add a banner at the top of the main box
+        self.main_box.prepend(&banner);
+        self.current_banner = Some(banner);
+
+        tracing::debug!(
+            "Showed {} banner: {}",
+            match banner_type {
+                BannerType::Success => "success",
+                BannerType::Warning => "warning",
+                BannerType::Error => "error",
+                BannerType::Info => "info",
+            },
+            message
+        );
+    }
+
+    /// Hides the current banner if one is visible.
+    pub fn hide_banner(&mut self) {
+        if let Some(ref current_banner) = self.current_banner {
+            current_banner.set_revealed(false);
+
+            // Remove banner after animation completes
+            let banner_clone = current_banner.clone();
+            let main_box_clone = self.main_box.clone();
+
+            glib::timeout_add_local_once(std::time::Duration::from_millis(300), move || {
+                main_box_clone.remove(&banner_clone);
+            });
+
+            self.current_banner = None;
+            tracing::debug!("Hidden banner");
+        }
+    }
+
+    /// Creates a modern progress bar using libadwaita styling.
+    #[allow(dead_code)]
+    fn create_modern_progress(&self) -> ProgressBar {
+        let progress = ProgressBar::builder().show_text(true).build();
+        progress.add_css_class("osd");
+        progress
     }
 
     pub fn present(&self) {

@@ -1,0 +1,134 @@
+<?xml version="1.1" encoding="UTF-8"?>
+<interface>
+  <object class="AdwApplicationWindow" id="MainWindow">
+    <property name="title">UpToDate</property>
+    <property name="default-width">800</property>
+    <property name="default-height">600</property>
+    <child>
+      <object class="AdwToastOverlay" id="toast_overlay">
+        <child>
+          <object class="AdwToolbarView" id="toolbar_view">
+            <child type="top">
+              <object class="AdwHeaderBar" id="header_bar">
+                <child type="end">
+                  <object class="GtkMenuButton" id="menu_button">
+                    <property name="icon-name">open-menu-symbolic</property>
+                    <property name="tooltip-text">Main Menu</property>
+                    <property name="primary">True</property>
+                    <property name="menu-model">primary_menu</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="AdwClamp">
+                <property name="maximum-size">1000</property>
+                <property name="tightening-threshold">600</property>
+                <property name="margin-start">12</property>
+                <property name="margin-end">12</property>
+                <property name="margin-top">12</property>
+                <property name="margin-bottom">12</property>
+                <child>
+                  <object class="GtkBox" id="main_box">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">12</property>
+
+                    <!-- Control panel -->
+                    <child>
+                      <object class="GtkBox" id="button_container">
+                        <property name="orientation">vertical</property>
+                        <property name="margin-top">12</property>
+                        <property name="margin-bottom">12</property>
+                        <child>
+                          <object class="GtkBox" id="button_box">
+                            <property name="orientation">horizontal</property>
+                            <property name="spacing">6</property>
+                            <property name="halign">center</property>
+                            <style>
+                              <class name="linked"/>
+                            </style>
+                            <child>
+                              <object class="GtkButton" id="start_button">
+                                <property name="label">Update</property>
+                                <style>
+                                  <class name="suggested-action"/>
+                                  <class name="pill"/>
+                                </style>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkButton" id="stop_button">
+                                <property name="label">Stop</property>
+                                <property name="sensitive">false</property>
+                                <style>
+                                  <class name="destructive-action"/>
+                                  <class name="pill"/>
+                                </style>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <!-- Dry run switch -->
+                    <child>
+                      <object class="AdwPreferencesGroup" id="switch_group">
+                        <child>
+                          <object class="AdwSwitchRow" id="dry_run_switch">
+                            <property name="title">Dry Run</property>
+                            <property name="subtitle">Preview updates without applying them</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+
+                    <!-- Sources section -->
+                    <child>
+                      <object class="AdwPreferencesGroup" id="sources_group">
+                        <property name="title">Sources</property>
+                        <child>
+                          <object class="GtkListBox" id="sources_list">
+                            <property name="selection-mode">none</property>
+                            <style>
+                              <class name="boxed-list"/>
+                            </style>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+  <menu id="primary_menu">
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Preferences</attribute>
+        <attribute name="action">app.preferences</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
+        <attribute name="action">app.shortcuts</attribute>
+      </item>
+      <item>
+        <attribute name="label" translatable="yes">_About UpToDate</attribute>
+        <attribute name="action">app.about</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label" translatable="yes">_Quit</attribute>
+        <attribute name="action">app.quit</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

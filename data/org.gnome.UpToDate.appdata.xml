@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.gnome.UpToDate</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>UpToDate</name>
+  <summary>Keep your system packages up to date</summary>
+  <description>
+    <p>
+      UpToDate is a modern system update manager that helps you keep all your packages up to date across multiple
+      package managers.
+    </p>
+    <p>
+      Features include:
+    </p>
+    <ul>
+      <li>Support for multiple package managers (pacman, apt, dnf, flatpak, snap, pip, npm, rustup, and more)</li>
+      <li>Dry-run mode to preview updates before applying them</li>
+      <li>Clean, modern interface following GNOME Human Interface Guidelines</li>
+      <li>Real-time progress tracking for each package manager</li>
+      <li>Keyboard shortcuts for efficient navigation</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window showing available package managers</caption>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/user/uptodate</url>
+  <url type="bugtracker">https://github.com/user/uptodate/issues</url>
+  <developer_name>Atay Özcan</developer_name>
+  <releases>
+    <release version="1.0.0-alpha" date="2025-07-10">
+      <description>
+        <p>Initial alpha release with core functionality</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+  <launchable type="desktop-id">org.gnome.UpToDate.desktop</launchable>
+  <provides>
+    <binary>uptodate</binary>
+  </provides>
+</component>

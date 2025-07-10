@@ -1,0 +1,143 @@
+/* Enhanced CSS for libadwaita 1.7 with modern variables and features */
+
+/* Use new system font variables (libadwaita 1.7) */
+.code-text {
+    font-family: var(--monospace-font-family);
+    font-size: var(--monospace-font-size);
+}
+
+.document-text {
+    font-family: var(--document-font-family);
+    font-size: var(--document-font-size);
+}
+
+/* Status icon colors using libadwaita semantic variables */
+.status-icon.success {
+    color: @success_color;
+}
+
+.status-icon.error {
+    color: @error_color;
+}
+
+.status-icon.running {
+    color: @accent_color;
+}
+
+.status-icon.warning {
+    color: @warning_color;
+}
+
+/* Enhanced animations using new easing functions (libadwaita 1.7) */
+.status-icon {
+    transition: color 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.status-transition {
+    transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Progress bar with modern styling */
+progressbar {
+    transition: opacity 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.update-progress {
+    background: alpha(@accent_color, 0.1);
+    border-radius: 12px;
+    padding: 12px;
+    margin: 6px 0;
+}
+
+/* Modern keyboard shortcut styling with enhanced appearance */
+.keycap {
+    background: @window_bg_color;
+    border: 1px solid @borders;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: var(--monospace-font-family);
+    font-size: 0.9em;
+    margin: 3px;
+    box-shadow: 0 1px 3px alpha(@accent_color, 0.1);
+    transition: background 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.keycap:hover {
+    background: alpha(@accent_color, 0.05);
+}
+
+/* Shortcuts window styling */
+.shortcuts-window {
+    background: @view_bg_color;
+}
+
+/* Banner styling for different types */
+banner.success {
+    background: alpha(@success_color, 0.15);
+    color: @success_color;
+}
+
+banner.warning {
+    background: alpha(@warning_color, 0.15);
+    color: @warning_color;
+}
+
+banner.error {
+    background: alpha(@error_color, 0.15);
+    color: @error_color;
+}
+
+banner.info {
+    background: alpha(@accent_color, 0.15);
+    color: @accent_color;
+}
+
+/* Enhanced button styling with modern blue tinting */
+button.suggested-action {
+    background: linear-gradient(135deg, @accent_color, alpha(@accent_color, 0.8));
+    border: none;
+    transition: all 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+button.suggested-action:hover {
+    background: linear-gradient(135deg, alpha(@accent_color, 0.9), alpha(@accent_color, 0.7));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px alpha(@accent_color, 0.2);
+}
+
+button.destructive-action {
+    background: linear-gradient(135deg, @error_color, alpha(@error_color, 0.8));
+    transition: all 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+button.destructive-action:hover {
+    background: linear-gradient(135deg, alpha(@error_color, 0.9), alpha(@error_color, 0.7));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px alpha(@error_color, 0.2);
+}
+
+/* Loading state animations */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.loading {
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Enhanced list styling */
+.boxed-list {
+    border-radius: 12px;
+    background: @view_bg_color;
+    border: 1px solid alpha(@borders, 0.5);
+}
+
+.boxed-list row {
+    transition: background 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.boxed-list row:hover {
+    background: alpha(@accent_color, 0.05);
+}

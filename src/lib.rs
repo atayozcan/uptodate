@@ -4,7 +4,7 @@ pub mod updater;
 
 use async_std::sync::RwLock;
 use config::Config;
-use libadwaita::{Application, prelude::*};
+use libadwaita::Application;
 use std::sync::Arc;
 use updater::Updater;
 
@@ -25,13 +25,39 @@ impl AppState {
     }
 }
 
-pub fn setup_actions(app: &Application) {
-    use libadwaita::gio::ActionEntry;
+pub fn setup_actions(_app: &Application) {
+    // Legacy function - actions are now handled in main.rs
+}
 
-    let quit_action = ActionEntry::builder("quit")
-        .activate(|app: &Application, _, _| app.quit())
-        .build();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    app.add_action_entries([quit_action]);
-    app.set_accels_for_action("app.quit", &["<Control>q"]);
+    #[async_std::test]
+    async fn test_app_state_creation() {
+        let state = AppState::new().await;
+
+        // Verify state structure
+        assert!(!state.config.read().await.dry_run); // Default should be false
+        assert!(state.config.read().await.save_logs); // Default should be true
+
+        // Verify updater is initialized
+        assert!(!state.updater.is_running());
+    }
+
+    #[async_std::test]
+    async fn test_app_state_clone() {
+        let state1 = AppState::new().await;
+        let state2 = state1.clone();
+
+        // Both should point to the same config
+        state1.config.write().await.dry_run = true;
+        assert!(state2.config.read().await.dry_run);
+    }
+
+    #[test]
+    fn test_app_id_constant() {
+        assert_eq!(APP_ID, "org.gnome.UpToDate");
+        assert!(APP_ID.starts_with("org.gnome."));
+    }
 }

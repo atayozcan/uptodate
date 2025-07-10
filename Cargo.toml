@@ -9,19 +9,19 @@ repository = "https://github.com/atayozcan/uptodate"
 license = "MIT"
 
 [dependencies]
-libadwaita = { version = "*", features = ["v1_7"] }
-async-std = { version = "*", features = ["attributes", "unstable"] }
-serde = { version = "*", features = ["derive"] }
-anyhow = "*"
-tracing = "*"
-tracing-subscriber = "*"
-dirs = "*"
-glib = "*"
-gio = "*"
-toml = "*"
+libadwaita = { version = "0.7", features = ["v1_7"] }
+async-std = { version = "1.12", features = ["attributes", "unstable"] }
+serde = { version = "1.0", features = ["derive"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dirs = "6.0.0"
+glib = "0.20"
+gio = "0.20"
+toml = "0.9.0"
 
 [dev-dependencies]
-
+tempfile = "3.0"
 [[bin]]
 name = "uptodate"
 path = "src/main.rs"

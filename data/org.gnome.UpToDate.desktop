@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=UpToDate
+Comment=Keep your system packages up to date
+Exec=uptodate
+Icon=org.gnome.UpToDate
+Terminal=false
+Type=Application
+Categories=System;Settings;
+StartupNotify=true
+Keywords=update;packages;system;maintenance;
