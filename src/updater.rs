@@ -391,7 +391,7 @@ impl Updater {
     ) -> bool {
         // Validate security before executing
         if let Err(e) = validate_manager_security(manager) {
-            tracing::error!("Security validation failed: {}", e);
+            error!("Security validation failed: {}", e);
             tx.send(UpdateEvent::SourceError(
                 manager.name.clone(),
                 e.to_string(),
@@ -402,7 +402,7 @@ impl Updater {
         }
 
         if let Err(e) = validate_command_args(cmd) {
-            tracing::error!("Command validation failed: {}", e);
+            error!("Command validation failed: {}", e);
             tx.send(UpdateEvent::SourceError(
                 manager.name.clone(),
                 e.to_string(),
@@ -529,7 +529,7 @@ mod tests {
         let updater = Updater::new();
 
         assert!(!updater.is_running());
-        assert!(updater.managers.len() > 0); // Should have some predefined managers
+        assert!(!updater.managers.is_empty()); // Should have some predefined managers
 
         // Test some expected managers
         assert!(updater.get_manager_info("paru").is_some());
@@ -628,7 +628,7 @@ mod tests {
             UpdateEvent::Error("General error".to_string()),
         ];
 
-        // Just verify they can be created and match
+        // Verify they can be created and match
         for event in events {
             match event {
                 UpdateEvent::Started => {}
@@ -667,13 +667,13 @@ mod tests {
     async fn test_updater_detect_sources() {
         let updater = Updater::new();
 
-        // This test might fail in CI environment without package managers
+        // This test might fail in a CI environment without package managers, 
         // so we just verify the method doesn't panic
         let result = updater.detect_sources().await;
         assert!(result.is_ok());
 
         let _sources = result.unwrap();
-        // Sources list might be empty in test environment, that's ok
+        // Sources list might be empty in the test environment, that's ok
         // Length is always >= 0 for Vec, so this assertion is always true
     }
 
@@ -690,6 +690,6 @@ mod tests {
         assert!(ALLOWED_MANAGERS.contains(&"paru"));
         assert!(!ALLOWED_MANAGERS.contains(&"malicious"));
 
-        assert!(ALLOWED_MANAGERS.len() > 5); // Should have reasonable number of managers
+        assert!(ALLOWED_MANAGERS.len() > 5); // Should have a reasonable number of managers
     }
 }

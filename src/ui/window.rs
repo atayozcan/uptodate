@@ -554,7 +554,6 @@ impl MainWindow {
     }
 
     /// Creates a modern progress bar using libadwaita styling.
-    #[allow(dead_code)]
     fn create_modern_progress(&self) -> ProgressBar {
         let progress = ProgressBar::builder().show_text(true).build();
         progress.add_css_class("osd");
